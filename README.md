@@ -27,8 +27,8 @@ This repository contains two main example projects:
 
 | Folder                                                                   | Description                                                                                                                            |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [`all-in-one-patch-example`](./all-in-one-patch-example)                 | Uses custom provisioners **with patch templates** to extend or modify default behavior (e.g., labels, namespace injection).            |
-| [`all-in-one-without-patch-example`](./all-in-one-without-patch-example) | Uses **only custom provisioners**, giving you full control over resource generation (e.g., replacing default `Deployment`, `Service`). |
+| [`all-in-one-patch-example`](provisioners/all-in-one-patch-example)                 | Uses custom provisioners **with patch templates** to extend or modify default behavior (e.g., labels, namespace injection).            |
+| [`all-in-one-without-patch-example`](provisioners/all-in-one-without-patch-example) | Uses **only custom provisioners**, giving you full control over resource generation (e.g., replacing default `Deployment`, `Service`). |
 
 Each example shows how to:
 
