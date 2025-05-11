@@ -1,0 +1,4 @@
+{{ range $i, $m := .Manifests }}
+- op: delete
+  path: {{ $i }}
+{{ end }}

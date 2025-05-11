@@ -1,0 +1,290 @@
+# .score/provisioners.yaml
+# List of all custom provisioners that replicate kro.run templates
+
+# 1) Namespace
+- uri: template://kro-run-provisioners/namespace
+  type: namespace
+  description: Creates a Namespace for the app
+  init: |
+    name: {{ default .SourceWorkload .Params.name }}
+  supported_params:
+    - name
+  outputs: |
+    name: {{ .Init.name }}
+  expected_outputs:
+    - name
+  manifests: |
+    - apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: {{ .Init.name }}
+        labels:
+          pod-security.kubernetes.io/enforce: "restricted"
+          pod-security.kubernetes.io/audit:    "baseline"
+          pod-security.kubernetes.io/warn:     "baseline"
+
+# 2) ServiceAccount
+- uri: template://kro-run-provisioners/service-account
+  type: service-account
+  description: Creates a ServiceAccount for the app
+  manifests: |
+    - apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: {{ .SourceWorkload }}-sa
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+
+# 3) ConfigMap
+- uri: template://kro-run-provisioners/config-map
+  type: config-map
+  description: Creates a ConfigMap with APP_ENV & LOG_LEVEL
+  init: |
+    name: {{ printf "%s-cm" .SourceWorkload }}
+    APP_ENV:  "development"
+    LOG_LEVEL: "info"
+  outputs: |
+    name: {{ .Init.name }}
+  expected_outputs:
+    - name
+  manifests: |
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: {{ .Init.name }}
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+      data:
+        {{- range $k, $v := .Init }}
+        {{- if ne $k "name" }}
+        {{ $k }}: {{ quote $v }}
+        {{- end }}
+        {{- end }}
+
+# 4) NetworkPolicy
+- uri: template://kro-run-provisioners/network-policy
+  type: network-policy
+  description: Allows ingress only from the NGINX Ingress Controller
+  manifests: |
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: {{ .SourceWorkload }}-netpol
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+      spec:
+        podSelector:
+          matchLabels:
+            app: {{ .SourceWorkload }}
+        policyTypes:
+          - Ingress
+        ingress:
+          - from:
+              - podSelector:
+                  matchLabels:
+                    app: ingress-nginx
+            ports:
+              - protocol: TCP
+                port: 8080
+
+# 5) HorizontalPodAutoscaler
+- uri: template://kro-run-provisioners/hpa
+  type: horizontal-pod-autoscaler
+  description: Creates an HPA with CPU utilization
+  init: |
+    defaultMin: 2
+    defaultMax: 10
+    defaultTargetCPUUtilizationPercentage: 70
+  supported_params:
+    - minReplicas
+    - maxReplicas
+    - targetCPUUtilizationPercentage
+  expected_outputs:
+    - minReplicas
+    - maxReplicas
+    - targetCPUUtilizationPercentage
+  outputs: |
+    minReplicas: {{ .Params.minReplicas | default .Init.defaultMin }}
+    maxReplicas: {{ .Params.maxReplicas | default .Init.defaultMax }}
+    targetCPUUtilizationPercentage: {{ .Params.targetCPUUtilizationPercentage | default .Init.defaultTargetCPUUtilizationPercentage }}
+  manifests: |
+    - apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: {{ .SourceWorkload }}-hpa
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+      spec:
+        scaleTargetRef:
+          apiVersion: apps/v1
+          kind:       Deployment
+          name:       {{ .SourceWorkload }}
+        minReplicas: {{ .Params.minReplicas | default .Init.defaultMin }}
+        maxReplicas: {{ .Params.maxReplicas | default .Init.defaultMax }}
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: {{ .Params.targetCPUUtilizationPercentage | default .Init.defaultTargetCPUUtilizationPercentage }}
+
+
+# 6) DNS (Dummy)
+- uri: template://kro-run-provisioners/dns
+  type: dns
+  description: Dummy DNS that returns the hostname
+  supported_params:
+    - host
+  outputs: |
+    host: {{ .Params.host }}
+  expected_outputs:
+    - host
+
+# 7) Route → Ingress
+- uri: template://kro-run-provisioners/route
+  type: route
+  description: Creates an Ingress with cert-manager annotations
+  init: |
+    clusterIssuer:     "letsencrypt-prod"
+    path:              "/"
+    port:              8080
+    ingressClassName:  "nginx"
+  supported_params:
+    - port
+    - path
+    - clusterIssuer
+    - ingressClassName
+  manifests: |
+    - apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: {{ .SourceWorkload }}-ingress
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+        annotations:
+          cert-manager.io/cluster-issuer: {{ .Init.clusterIssuer }}
+          nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      spec:
+        ingressClassName: {{ .Params.ingressClassName | default .Init.ingressClassName }}
+        tls:
+          - hosts:
+              - {{ .Params.host }}
+            secretName: {{ .Params.host }}-tls
+        rules:
+          - host: {{ .Params.host }}
+            http:
+              paths:
+                - path: {{ .Init.path | default .Init.path }}
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: {{ .SourceWorkload }}-service
+                      port:
+                        number: {{ .Params.port | default .Init.port }}
+
+# 4) Deployment
+- uri: template://kro-run-provisioners/deployment
+  type: deployment
+  description: Deployment of the app with SecurityContext & Probes
+  init: |
+    replicas: 2
+    image:    "ghcr.io/la-cc/simple-landing-page:0.0.6"
+  supported_params:
+    - replicas
+    - image
+  manifests: |
+    - apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: {{ .SourceWorkload }}
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+        labels:
+          app: {{ .SourceWorkload }}
+      spec:
+        replicas: {{ .Params.replicas | default .Init.replicas }}
+        selector:
+          matchLabels:
+            app: {{ .SourceWorkload }}
+        template:
+          metadata:
+            labels:
+              app: {{ .SourceWorkload }}
+          spec:
+            serviceAccountName: {{ .SourceWorkload }}-sa
+            securityContext:
+              runAsNonRoot: true
+              runAsUser:    1000
+              fsGroup:      2000
+              seccompProfile:
+                type: RuntimeDefault
+            volumes:
+              - name: tmp
+                emptyDir: {}
+              - name: podname
+                downwardAPI:
+                  items:
+                    - path: podname
+                      fieldRef:
+                        fieldPath: metadata.name
+            containers:
+              - name: {{ .SourceWorkload }}
+                image: {{ .Params.image | default .Init.image }}
+                envFrom:
+                  - configMapRef:
+                      name: {{ .SourceWorkload }}-cm
+                ports:
+                  - containerPort: 8080
+                resources:
+                  requests:
+                    cpu:    "100m"
+                    memory: "256Mi"
+                  limits:
+                    cpu:    "200m"
+                    memory: "512Mi"
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem:   true
+                  capabilities:
+                    drop:
+                      - ALL
+                    add:
+                      - NET_BIND_SERVICE
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds:       10
+                  failureThreshold:    3
+                readinessProbe:
+                  httpGet:
+                    path: /ready
+                    port: 8080
+                  initialDelaySeconds: 5
+                  periodSeconds:       5
+                volumeMounts:
+                  - name: tmp
+                    mountPath: /tmp
+                  - name: podname
+                    subPath: podname
+                    mountPath: /usr/share/nginx/html/podname
+                    readOnly: true
+
+- uri: template://kro-run-provisioners/service
+  type: service
+  description: Exposes the Deployment via a ClusterIP Service
+  init: |
+    port: 8080
+    targetPort: 8080
+  supported_params:
+    - port
+    - targetPort
+  manifests: |
+    - apiVersion: v1
+      kind: Service
+      metadata:
+        name: {{ .SourceWorkload }}-service
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+      spec:
+        selector:
+          app: {{ .SourceWorkload }}
+        ports:
+          - protocol: TCP
+            port:       {{ .Params.port | default .Init.port }}
+            targetPort:  {{ .Params.targetPort | default .Init.targetPort }}
