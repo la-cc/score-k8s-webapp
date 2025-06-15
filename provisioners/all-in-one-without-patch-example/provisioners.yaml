@@ -1,39 +1,6 @@
 # .score/provisioners.yaml
 # List of all custom provisioners that replicate kro.run templates
 
-# 1) Namespace
-- uri: template://kro-run-provisioners/namespace
-  type: namespace
-  description: Creates a Namespace for the app
-  init: |
-    name: {{ default .SourceWorkload .Params.name }}
-  supported_params:
-    - name
-  outputs: |
-    name: {{ .Init.name }}
-  expected_outputs:
-    - name
-  manifests: |
-    - apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: {{ .Init.name }}
-        labels:
-          pod-security.kubernetes.io/enforce: "restricted"
-          pod-security.kubernetes.io/audit:    "baseline"
-          pod-security.kubernetes.io/warn:     "baseline"
-
-# 2) ServiceAccount
-- uri: template://kro-run-provisioners/service-account
-  type: service-account
-  description: Creates a ServiceAccount for the app
-  manifests: |
-    - apiVersion: v1
-      kind: ServiceAccount
-      metadata:
-        name: {{ .SourceWorkload }}-sa
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
-
 # 3) ConfigMap
 - uri: template://kro-run-provisioners/config-map
   type: config-map
@@ -58,31 +25,6 @@
         {{ $k }}: {{ quote $v }}
         {{- end }}
         {{- end }}
-
-# 4) NetworkPolicy
-- uri: template://kro-run-provisioners/network-policy
-  type: network-policy
-  description: Allows ingress only from the NGINX Ingress Controller
-  manifests: |
-    - apiVersion: networking.k8s.io/v1
-      kind: NetworkPolicy
-      metadata:
-        name: {{ .SourceWorkload }}-netpol
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
-      spec:
-        podSelector:
-          matchLabels:
-            app: {{ .SourceWorkload }}
-        policyTypes:
-          - Ingress
-        ingress:
-          - from:
-              - podSelector:
-                  matchLabels:
-                    app: ingress-nginx
-            ports:
-              - protocol: TCP
-                port: 8080
 
 # 5) HorizontalPodAutoscaler
 - uri: template://kro-run-provisioners/hpa
@@ -177,6 +119,25 @@
                       name: {{ .SourceWorkload }}-service
                       port:
                         number: {{ .Params.port | default .Init.port }}
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: {{ .SourceWorkload }}-netpol
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+      spec:
+        podSelector:
+          matchLabels:
+            app: {{ .SourceWorkload }}
+        policyTypes:
+          - Ingress
+        ingress:
+          - from:
+              - podSelector:
+                  matchLabels:
+                    app: ingress-nginx
+            ports:
+              - protocol: TCP
+                port: 8080
 
 # 4) Deployment
 - uri: template://kro-run-provisioners/deployment

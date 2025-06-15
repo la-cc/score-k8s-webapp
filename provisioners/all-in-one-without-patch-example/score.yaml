@@ -2,28 +2,19 @@
 apiVersion: score.dev/v1b1
 metadata:
   name: simple-webapp
-
+containers:
+  webapp:
+    image: ghcr.io/la-cc/simple-landing-page:0.0.6
+service:
+  ports:
+    tcp:
+      port:       8080
+      targetPort: 8080
 resources:
-  namespace:
-    type: namespace
-    params:
-      name: webapp
-
   config-map:
     type: config-map
     params:
       namespace: ${resources.namespace.name}
-
-  service-account:
-    type: service-account
-    params:
-      namespace: ${resources.namespace.name}
-
-  network-policy:
-    type: network-policy
-    params:
-      namespace: ${resources.namespace.name}
-
   deployment:
     type: deployment
     params:
@@ -31,35 +22,23 @@ resources:
       image:          ghcr.io/la-cc/simple-landing-page:0.0.6
       replicas:       3
       configMapName:  ${resources.config-map.name}
-
   service:
     type: service
     params:
       namespace: ${resources.namespace.name}
-
   hpa:
     type: horizontal-pod-autoscaler
     params:
       namespace: ${resources.namespace.name}
-
   dns:
     type: dns
     params:
       namespace: ${resources.namespace.name}
       host:      webapp.vcluster-y.webinar.stackit.run
-
   route:
     type: route
     params:
       namespace:     ${resources.namespace.name}
       host:          ${resources.dns.host}
 
-containers:
-  webapp:
-    image: ghcr.io/la-cc/simple-landing-page:0.0.6
 
-service:
-  ports:
-    tcp:
-      port:       8080
-      targetPort: 8080

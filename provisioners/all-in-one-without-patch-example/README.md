@@ -47,7 +47,8 @@ To fully replace the defaults, you can apply a "delete everything" patch to remo
 
 ```yaml
 # all-in-one-without-patch-example/delete-default-provisioners.provisioners.yaml
-{{ range $i, $m := .Manifests }}
+{{ range $i, $m := (reverse .Manifests) }}
+{{ $i := sub (len $.Manifests) (add $i 1) }}
 - op: delete
   path: {{ $i }}
 {{ end }}
@@ -61,14 +62,6 @@ score-k8s init \
   --provisioners all-in-one-without-patch-example/provisioners.yaml \
   --patch-templates all-in-one-without-patch-example/delete-default-provisioners.provisioners.yaml
 ```
-
----
-
-## 🐞 Known Issue
-
-As of now, due to [a bug in `score-k8s`](https://github.com/score-spec/score-k8s/issues/167), it's **not yet possible** to delete default `Deployment` and `Service` resources using a patch template.
-
-👉 **Temporary workaround:** Delete the duplicated resources manually from the generated manifests until this is fixed in an upcoming release.
 
 ---
 

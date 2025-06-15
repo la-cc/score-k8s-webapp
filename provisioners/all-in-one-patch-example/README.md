@@ -14,7 +14,6 @@ It serves as a practical **patching example** for platform teams and developers 
 
 * Custom provisioners for common Kubernetes resources (Deployment, Service, etc.)
 * Patch templates to inject labels, annotations, or modify structure
-* CLI-based manifest patching for dynamic configuration
 * Clean separation of logic, ideal for CI/CD and multi-environment setups
 
 ---
@@ -29,8 +28,11 @@ Run the following to initialize the setup with provisioners and patch templates:
 score-k8s init \
   --no-sample \
   --provisioners all-in-one-patch-example/provisioners.yaml \
-  --patch-templates all-in-one-patch-example/10-deployment-patcher.provisioners.yaml \
-  --patch-templates all-in-one-patch-example/10-service-patcher.provisioners.yaml
+  --patch-templates all-in-one-patch-example/10-deployment-patcher.provisioners.tpl \
+  --patch-templates all-in-one-patch-example/10-service-patcher.provisioners.tpl \
+  --patch-templates https://raw.githubusercontent.com/score-spec/community-patchers/refs/heads/main/score-k8s/service-account.tpl \
+  --patch-templates https://raw.githubusercontent.com/score-spec/community-patchers/refs/heads/main/score-k8s/namespace-pss-restricted.tpl \
+  --patch-templates https://raw.githubusercontent.com/score-spec/community-patchers/refs/heads/main/score-k8s/unprivileged.tpl
 ```
 
 ---
@@ -40,8 +42,7 @@ score-k8s init \
 Generate the Kubernetes manifests and apply dynamic patches (like setting the namespace):
 
 ```bash
-score-k8s generate all-in-one-patch-example/score.yaml \
-  --patch-manifests '*/*/metadata.namespace=webapp'
+score-k8s generate all-in-one-patch-example/score.yaml --namespace webapp --generate-namespace
 ```
 
 ---
@@ -53,24 +54,13 @@ score-k8s generate all-in-one-patch-example/score.yaml \
 When working with both patch templates and CLI-based patching, Score applies changes in the following order:
 
 1. **Generate**: The base Kubernetes manifests are generated from your Score file.
-2. **CLI Patch**: Fields modified with `--patch-manifests` are applied (e.g., dynamic namespace).
-3. **Patch Templates**: Templates from `--patch-templates` are applied **last** and override any previous changes. This is how it looks like to work.
-
-### Namespace Conflicts
-
-If your patch template defines a value for `metadata.namespace`, it will override the one provided via CLI.
-
-#### ✅ Recommended Solution:
-
-If you want to set the namespace dynamically (e.g., via `--patch-manifests`), **remove the `namespace` field** from your patch templates.
+2. **Patch Templates**: Templates from `--patch-templates` are applied **last** and override any previous changes. This is how it looks like to work.
 
 ---
 
 ## ✅ Best Practices (imho)
 
 * Use **patch templates** for reusable static changes (e.g., default labels, sidecars).
-* Use **CLI patches** for values that vary per environment (e.g., namespace, replica count).
-* Avoid defining the same field in both CLI and patch templates to prevent overwrites.
 
 ---
 
