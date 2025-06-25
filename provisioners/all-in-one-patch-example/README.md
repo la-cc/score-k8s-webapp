@@ -28,6 +28,7 @@ Run the following to initialize the setup with provisioners and patch templates:
 score-k8s init \
   --no-sample \
   --provisioners all-in-one-patch-example/provisioners.yaml \
+  --provisioners https://raw.githubusercontent.com/score-spec/community-provisioners/refs/heads/main/horizontal-pod-autoscaler/score-k8s/10-hpa.provisioners.yaml \
   --patch-templates all-in-one-patch-example/10-deployment-patcher.provisioners.tpl \
   --patch-templates all-in-one-patch-example/10-service-patcher.provisioners.tpl \
   --patch-templates https://raw.githubusercontent.com/score-spec/community-patchers/refs/heads/main/score-k8s/service-account.tpl \

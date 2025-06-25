@@ -29,7 +29,7 @@ score-k8s init \
 Then generate your Kubernetes manifests:
 
 ```bash
-score-k8s generate all-in-one-without-patch-example/score.yaml
+score-k8s generate all-in-one-without-patch-example/score.yaml --namespace simple-webapp --generate-namespace
 ```
 
 ---

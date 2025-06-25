@@ -28,21 +28,15 @@ service:
 resources:
   config-map:
     type: config-map
-    params:
-      namespace: ${resources.namespace.name}
   hpa:
     type: horizontal-pod-autoscaler
-    params:
-      namespace: ${resources.namespace.name}
   dns:
     type: dns
     params:
-      namespace: ${resources.namespace.name}
-      host:      webapp.vcluster-y.webinar.stackit.run
+      host: webapp.vcluster-y.webinar.stackit.run
   route:
     type: route
     params:
-      namespace:     ${resources.namespace.name}
-      host:          ${resources.dns.host}
+      host: ${resources.dns.host}
 
 
