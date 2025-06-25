@@ -23,7 +23,7 @@ containers:
 service:
   ports:
     tcp:
-      port:       8080
+      port: 8080
       targetPort: 8080
 resources:
   config-map:
@@ -38,5 +38,3 @@ resources:
     type: route
     params:
       host: ${resources.dns.host}
-
-
