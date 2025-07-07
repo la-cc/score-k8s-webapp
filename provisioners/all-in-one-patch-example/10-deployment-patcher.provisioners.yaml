@@ -1,9 +1,5 @@
 {{- range $i, $m := .Manifests }}
 {{- if eq $m.kind "Deployment" }}
-# 1) set namespace
-# - op: set
-#   path: {{ $i }}.metadata.namespace
-#   value: replace-me
 
 # 2) metadata.labels → app=<name>
 - op: set
@@ -25,33 +21,6 @@
   path: {{ $i }}.spec.template.metadata.labels
   value:
     app: {{ $m.metadata.name }}
-
-# 5) inject ServiceAccount resource
-- op: set
-  path: -1
-  value:
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-      name: {{ $m.metadata.name }}-sa
-
-# 6) wire Deployment to SA & disable automount
-- op: set
-  path: {{ $i }}.spec.template.spec.serviceAccountName
-  value: {{ $m.metadata.name }}-sa
-- op: set
-  path: {{ $i }}.spec.template.spec.automountServiceAccountToken
-  value: false
-
-# 7) pod-level securityContext
-- op: set
-  path: {{ $i }}.spec.template.spec.securityContext
-  value:
-    fsGroup:      2000
-    runAsUser:    1000
-    runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
 
 # 8) inject volumes so mounts have definitions
 - op: set
@@ -84,45 +53,6 @@
       mountPath: /usr/share/nginx/html/podname
       readOnly: true
 
-- op: set
-  path: {{ $i }}.spec.template.spec.containers.{{ $cidx }}.securityContext
-  value:
-    allowPrivilegeEscalation: false
-    readOnlyRootFilesystem:   true
-    capabilities:
-      drop:
-        - ALL
-      add:
-        - NET_BIND_SERVICE
-
-- op: set
-  path: {{ $i }}.spec.template.spec.containers.{{ $cidx }}.livenessProbe
-  value:
-    httpGet:
-      path: /healthz
-      port: 8080
-    initialDelaySeconds: 30
-    periodSeconds:       10
-    failureThreshold:    3
-
-- op: set
-  path: {{ $i }}.spec.template.spec.containers.{{ $cidx }}.readinessProbe
-  value:
-    httpGet:
-      path: /ready
-      port: 8080
-    initialDelaySeconds: 5
-    periodSeconds:       5
-
-- op: set
-  path: {{ $i }}.spec.template.spec.containers.{{ $cidx }}.resources
-  value:
-    requests:
-      cpu:    "100m"
-      memory: "256Mi"
-    limits:
-      cpu:    "200m"
-      memory: "512Mi"
 {{- end }}
 
 {{- end }}

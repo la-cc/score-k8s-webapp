@@ -1,39 +1,6 @@
 # .score/provisioners.yaml
 # List of all custom provisioners that replicate kro.run templates
 
-# 1) Namespace
-- uri: template://kro-run-provisioners/namespace
-  type: namespace
-  description: Creates a Namespace for the app
-  init: |
-    name: {{ default .SourceWorkload .Params.name }}
-  supported_params:
-    - name
-  outputs: |
-    name: {{ .Init.name }}
-  expected_outputs:
-    - name
-  manifests: |
-    - apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: {{ .Init.name }}
-        labels:
-          pod-security.kubernetes.io/enforce: "restricted"
-          pod-security.kubernetes.io/audit:    "baseline"
-          pod-security.kubernetes.io/warn:     "baseline"
-
-# 2) ServiceAccount
-- uri: template://kro-run-provisioners/service-account
-  type: service-account
-  description: Creates a ServiceAccount for the app
-  manifests: |
-    - apiVersion: v1
-      kind: ServiceAccount
-      metadata:
-        name: {{ .SourceWorkload }}-sa
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
-
 # 3) ConfigMap
 - uri: template://kro-run-provisioners/config-map
   type: config-map
@@ -51,80 +18,13 @@
       kind: ConfigMap
       metadata:
         name: {{ .Init.name }}
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
+        namespace: {{ .Namespace | default .SourceWorkload }}
       data:
         {{- range $k, $v := .Init }}
         {{- if ne $k "name" }}
         {{ $k }}: {{ quote $v }}
         {{- end }}
         {{- end }}
-
-# 4) NetworkPolicy
-- uri: template://kro-run-provisioners/network-policy
-  type: network-policy
-  description: Allows ingress only from the NGINX Ingress Controller
-  manifests: |
-    - apiVersion: networking.k8s.io/v1
-      kind: NetworkPolicy
-      metadata:
-        name: {{ .SourceWorkload }}-netpol
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
-      spec:
-        podSelector:
-          matchLabels:
-            app: {{ .SourceWorkload }}
-        policyTypes:
-          - Ingress
-        ingress:
-          - from:
-              - podSelector:
-                  matchLabels:
-                    app: ingress-nginx
-            ports:
-              - protocol: TCP
-                port: 8080
-
-# 5) HorizontalPodAutoscaler
-- uri: template://kro-run-provisioners/hpa
-  type: horizontal-pod-autoscaler
-  description: Creates an HPA with CPU utilization
-  init: |
-    defaultMin: 2
-    defaultMax: 10
-    defaultTargetCPUUtilizationPercentage: 70
-  supported_params:
-    - minReplicas
-    - maxReplicas
-    - targetCPUUtilizationPercentage
-  expected_outputs:
-    - minReplicas
-    - maxReplicas
-    - targetCPUUtilizationPercentage
-  outputs: |
-    minReplicas: {{ .Params.minReplicas | default .Init.defaultMin }}
-    maxReplicas: {{ .Params.maxReplicas | default .Init.defaultMax }}
-    targetCPUUtilizationPercentage: {{ .Params.targetCPUUtilizationPercentage | default .Init.defaultTargetCPUUtilizationPercentage }}
-  manifests: |
-    - apiVersion: autoscaling/v2
-      kind: HorizontalPodAutoscaler
-      metadata:
-        name: {{ .SourceWorkload }}-hpa
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
-      spec:
-        scaleTargetRef:
-          apiVersion: apps/v1
-          kind:       Deployment
-          name:       {{ .SourceWorkload }}
-        minReplicas: {{ .Params.minReplicas | default .Init.defaultMin }}
-        maxReplicas: {{ .Params.maxReplicas | default .Init.defaultMax }}
-        metrics:
-          - type: Resource
-            resource:
-              name: cpu
-              target:
-                type: Utilization
-                averageUtilization: {{ .Params.targetCPUUtilizationPercentage | default .Init.defaultTargetCPUUtilizationPercentage }}
-
 
 # 6) DNS (Dummy)
 - uri: template://kro-run-provisioners/dns
@@ -156,7 +56,7 @@
       kind: Ingress
       metadata:
         name: {{ .SourceWorkload }}-ingress
-        namespace: {{ .Params.namespace | default .SourceWorkload }}
+        namespace: {{ .Namespace | default .SourceWorkload }}
         annotations:
           cert-manager.io/cluster-issuer: {{ .Init.clusterIssuer }}
           nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
@@ -177,3 +77,22 @@
                       name: {{ .SourceWorkload }}
                       port:
                         number: {{ .Params.port | default .Init.port }}
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: {{ .SourceWorkload }}-netpol
+        namespace: {{ .Namespace | default .SourceWorkload }}
+      spec:
+        podSelector:
+          matchLabels:
+            app: {{ .SourceWorkload }}
+        policyTypes:
+          - Ingress
+        ingress:
+          - from:
+              - podSelector:
+                  matchLabels:
+                    app: ingress-nginx
+            ports:
+              - protocol: TCP
+                port: 8080
