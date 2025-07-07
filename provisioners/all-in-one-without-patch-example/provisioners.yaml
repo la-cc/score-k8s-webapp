@@ -26,6 +26,47 @@
         {{- end }}
         {{- end }}
 
+# 5) Horizontal Pod Autoscaler (HPA)
+- uri: template://kro-run-provisioners/hpa
+  type: horizontal-pod-autoscaler
+  description: Creates an HPA with CPU utilization
+  init: |
+    defaultMin: 2
+    defaultMax: 10
+    defaultTargetCPUUtilizationPercentage: 70
+  supported_params:
+    - minReplicas
+    - maxReplicas
+    - targetCPUUtilizationPercentage
+  expected_outputs:
+    - minReplicas
+    - maxReplicas
+    - targetCPUUtilizationPercentage
+  outputs: |
+    minReplicas: {{ .Params.minReplicas | default .Init.defaultMin }}
+    maxReplicas: {{ .Params.maxReplicas | default .Init.defaultMax }}
+    targetCPUUtilizationPercentage: {{ .Params.targetCPUUtilizationPercentage | default .Init.defaultTargetCPUUtilizationPercentage }}
+  manifests: |
+    - apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: {{ .SourceWorkload }}-hpa
+        namespace: {{ .Params.namespace | default .SourceWorkload }}
+      spec:
+        scaleTargetRef:
+          apiVersion: apps/v1
+          kind:       Deployment
+          name:       {{ .SourceWorkload }}
+        minReplicas: {{ .Params.minReplicas | default .Init.defaultMin }}
+        maxReplicas: {{ .Params.maxReplicas | default .Init.defaultMax }}
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: {{ .Params.targetCPUUtilizationPercentage | default .Init.defaultTargetCPUUtilizationPercentage }}
+
 # 6) DNS (Dummy)
 - uri: template://kro-run-provisioners/dns
   type: dns

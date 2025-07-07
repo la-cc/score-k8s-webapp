@@ -63,14 +63,22 @@ Refer to the [official Score documentation](https://score.dev/docs/) for Docker 
 
 ---
 
-## ✍️ Upcoming Blog Post: Why Score.dev Matters for Developers
+## 📝 New Blog Post: Why Score.dev Matters for Developers
 
-We’re preparing a blog post that highlights the **real pain points developers face** when managing infrastructure across environments—and how Score.dev addresses those.
+Our article is now live! We explore the **real pain points developers face** when managing infrastructure across multiple environments—and show how Score.dev provides relief.
 
-It will cover:
+The post covers:
 
 * The challenges of multi-environment deployments
 * Why developers struggle with Kubernetes YAML
 * How Score.dev decouples application intent from platform implementation
 
-📖 **Stay tuned!** The link will be added here once published.
+📖 **Read the blog post 👉**
+
+<figure>
+  <a href="https://medium.com/itnext/stop-building-platforms-nobody-uses-pick-the-right-kubernetes-abstraction-with-gitops-64681357690f" target="_blank" rel="noopener">
+    <img
+      src="images/intro-0.png"
+      alt="Stop Building Platforms Nobody Uses: Pick the Right Kubernetes Abstraction with GitOps">
+  </a>
+</figure>
